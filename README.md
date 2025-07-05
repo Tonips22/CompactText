@@ -1,7 +1,7 @@
-# CompactText - Calcolo Parallelo e Distribuito
-**Hecho por:**
-- Sara Liñan Heredia
-- Antonio García Torres
+# CompactText
+Convierte un texto en una representación compacta (IDs de palabras) y viceversa, con versiones paralelas en **OpenMP y MPI**.
+
+_Proyecto 3 de Calcolo Paralello e Distribuito._
 
 ## Estructura del proyecto
 ```
@@ -17,3 +17,7 @@ CompactText
 │   └── mpi.cpp            # versión MPI
 └── CMakeLists.txt
 ```
+
+## Autores
+- Sara Liñan Heredia
+- Antonio García Torres
