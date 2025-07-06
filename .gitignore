@@ -14,3 +14,6 @@ texto.bin
 # --- Documentos ---
 *.docx
 *.pdf
+
+# --- TODOs ---
+*.todo
