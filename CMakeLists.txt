@@ -4,3 +4,8 @@ project(CompactText CXX)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(compacttext_seq src/sequential.cpp)
+
+# OpenMP
+find_package(OpenMP REQUIRED)
+add_executable(compacttext_omp src/omp.cpp)
+target_link_libraries(compacttext_omp PUBLIC OpenMP::OpenMP_CXX)
