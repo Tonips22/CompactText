@@ -17,9 +17,9 @@ void help() {
 }
 
 // ------------------------- UTILIDADES -------------------------
-// Tokeniza un texto devolviendo solo palabras (letras, números y ')
+// Tokeniza un texto devolviendo palabras, números y algunos signos de puntuación
 vector<string> tokenize(const string &text) {
-    static const regex token_re("[A-Za-zÀ-ÖØ-öø-ÿ0-9']+");
+    static const regex token_re("[A-Za-zÀ-ÖØ-öø-ÿ0-9'()\\[\\]{}\".,;:!?¿¡—\\-]+");
     vector<string> words;
     for (sregex_iterator it(text.begin(), text.end(), token_re);
          it != sregex_iterator(); ++it) {
