@@ -1,0 +1,19 @@
+# --- Build & editor ---
+/build/
+*.o
+*.exe
+*.out
+*.a
+*.so
+*.swp
+
+# --- Binarios del proyecto ---
+vocab.bin
+texto.bin
+
+# --- Documentos ---
+*.docx
+*.pdf
+
+# --- TODOs ---
+*.todo
