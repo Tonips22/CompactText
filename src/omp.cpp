@@ -33,6 +33,8 @@ vector<string> tokenize(const string &text) {
 
 // ---------- Encode (paralelo) ----------
 int encode(const string &input_path) {
+    double t0 = omp_get_wtime();
+
     // Leer texto completo
     ifstream ifs(input_path);
     if (!ifs) {
@@ -93,13 +95,19 @@ int encode(const string &input_path) {
         out.write(reinterpret_cast<const char *>(ids.data()), sizeof(uint32) * count);
     }
 
+    double t1 = omp_get_wtime();
+    double duration = (t1 - t0) * 1e9; // Convertir a nanosegundos
+
     cout << "[OMP] Encoded " << N << " words. Unique=" << dict.size()
-              << ", threads=" << omp_get_max_threads() << "\n";
+              << ", threads=" << omp_get_max_threads()
+                << " | time=" << duration << " ns\n";
     return 0;
 }
 
 // ---------- Decode (mismo que secuencial) ----------
 int decode(const string &output_path) {
+    double t0 = omp_get_wtime();
+    
     ifstream vocab("vocab.bin", ios::binary);
     if (!vocab) {
         cerr << "vocab.bin not found\n";
@@ -125,7 +133,11 @@ int decode(const string &output_path) {
         out << vocab_vec[ids[i]];
         if (i + 1 < ids.size()) out << ' ';
     }
-    cout << "Decoded " << ids.size() << " words into " << output_path << "\n";
+    
+    double t1 = omp_get_wtime();
+    double duration = (t1 - t0) * 1e9; // Convertir a nanosegundos
+    cout << "Decoded " << ids.size() << " words into " << output_path
+         << " | time=" << duration << " ns\n";
     return 0;
 }
 
