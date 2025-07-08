@@ -6,6 +6,7 @@
 #include <regex>
 #include <cstdint>
 #include <iterator>
+#include <chrono>
 
 using namespace std;
 using uint32 = uint32_t;
@@ -31,6 +32,8 @@ vector<string> tokenize(const string &text) {
 // ------------------------- ENCODE -----------------------------
 // Lee un .txt, crea diccionario e IDs y genera vocab.bin + texto.bin
 int encode(const string &input_path) {
+    auto t0 = chrono::steady_clock::now();
+
     ifstream ifs(input_path);
     if (!ifs) {
         cerr << "Cannot open " << input_path << "\n";
@@ -76,13 +79,22 @@ int encode(const string &input_path) {
         out.write(reinterpret_cast<const char *>(ids.data()), sizeof(uint32) * count);
     }
 
-    cout << "Encoded " << words.size() << " words. Unique=" << dict.size() << "\n";
+    auto t1 = chrono::steady_clock::now();
+    auto duration = chrono::duration_cast<chrono::nanoseconds>(t1 - t0).count();
+    cout << "Encoding took " << duration << " ns\n";
+
+    cout << "Encoded " << words.size()
+         << " words. Unique=" << dict.size()
+         << " | time = " << duration << "ns\n";
     return 0;
 }
 
 // ------------------------- DECODE -----------------------------
 // Reconstruye el texto original usando vocab.bin y texto.bin
 int decode(const string &output_path) {
+
+    auto t0 = chrono::steady_clock::now();
+
     // Leer vocab.bin
     ifstream vocab("vocab.bin", ios::binary);
     if (!vocab) {
@@ -120,7 +132,12 @@ int decode(const string &output_path) {
             out << ' ';
     }
 
-    cout << "Decoded " << ids.size() << " words into " << output_path << "\n";
+    auto t1 = chrono::steady_clock::now();
+    auto duration = chrono::duration_cast<chrono::nanoseconds>(t1 - t0).count();
+    cout << "Decoding took " << duration << " ns\n";
+
+    cout << "Decoded " << ids.size()<< " words into " << output_path
+         << " | time=" << duration << " ns\n";
     return 0;
 }
 
