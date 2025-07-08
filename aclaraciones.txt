@@ -1,0 +1,20 @@
+- estamos haciendo paralelismo a nivel de archivos, es decir, si hacemos codificar varios archivos a la vez estos se hacen en paralelo, pero cada archivo lo hace un hilo en secuencial.
+
+
+compilar openmp:
+gcc -fopenmp src/openmp/encoder/encoder.c -o encoder
+./encoder data/input1.txt
+
+
+
+
+compilar mpi:
+mpicc src/mpi/encoder/encoder_mpi.c -o encoder_mpi
+
+ejecutar:
+mpirun -np 4 ./encoder_mpi data/input1.txt
+
+en el decoder:
+mpicc decoder_mpi.c -o decoder_mpi
+mpirun -np 4 ./decoder_mpi
+
