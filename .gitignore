@@ -8,8 +8,7 @@
 *.swp
 
 # --- Binarios del proyecto ---
-vocab.bin
-texto.bin
+*.bin
 
 # --- Documentos ---
 *.docx
