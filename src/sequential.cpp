@@ -124,6 +124,12 @@ int decode_file_seq (const string& stem) {
     return 0;
 }
 
+void help() {
+    cout << "\nUsage:\n"
+              << "  compacttext_seq encode <input.txt>\n"
+              << "  compacttext_seq decode <output.txt>\n\n";
+}
+
 
 
 int main(int argc, char* argv[]) {

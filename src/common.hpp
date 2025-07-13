@@ -14,12 +14,7 @@ int encode_file_omp (const string& path);
 int decode_file_omp (const string& stem);
 int encode_file_mpi (const string& path);
 int decode_file_mpi (const string& stem);
-
-void help() {
-    cout << "\nUsage:\n"
-              << "  compacttext_seq encode <input.txt>\n"
-              << "  compacttext_seq decode <output.txt>\n\n";
-}
+void help();
 
 vector<string> tokenize(const string &text) {
     static const regex token_re("[A-Za-zÀ-ÖØ-öø-ÿ0-9'()\\[\\]{}\".,;:!?¿¡—\\-]+");

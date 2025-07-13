@@ -1,3 +1,6 @@
+/*****************************************************************
+ CompactText — versión OpenMP  (multi-archivo + cronómetro)
+*****************************************************************/
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
@@ -6,144 +9,177 @@
 #include <regex>
 #include <cstdint>
 #include <iterator>
+#include <filesystem>
+#include <chrono>
 #include <omp.h>
 #include "common.hpp"
 
 using namespace std;
+
 using uint32 = uint32_t;
+namespace fs = filesystem;
 
-/* ------------------------------------------------------------
-   CompactText — Versión OpenMP (memoria compartida)
-   ------------------------------------------------------------
-   Solo paralelizamos la fase ENCODE, que es la costosa.
-   DECODER hereda exactamente el mismo algoritmo secuencial
-   porque reconstruir es I/O‑bound y no gana casi nada.
-----------------------------------------------------------------*/
+/* ==============================================================
+                    ENCODE   (un archivo)
+   ==============================================================*/
+int encode_file_omp(const string &path)
+{
+    auto t0 = chrono::steady_clock::now();
 
-// ---------- Encode (paralelo) ----------
-int encode_file_omp (const string& input_path) {
-    double t0 = omp_get_wtime();
-
-    // Leer texto completo
-    ifstream ifs(input_path);
+    ifstream ifs(path);
     if (!ifs) {
-        cerr << "Cannot open " << input_path << "\n";
-        return 1;
+        #pragma omp critical
+        cerr << "Cannot open " << path << "\n";
+        return 0.0;
     }
-    string text((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
+    string text((istreambuf_iterator<char>(ifs)), {});
 
-    // Tokenizar (aún secuencial; suele ser rápido)
     auto words = tokenize(text);
     const size_t N = words.size();
 
-    // Estructuras compartidas
     unordered_map<string, uint32> dict;
     dict.reserve(N / 2);
     vector<uint32> ids(N);
-
     uint32 next_id = 1;
 
-    // Paralelizar recorrido de palabras
+    /* ---- paraleliza sobre las palabras ---- */
     #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < N; ++i) {
-            const string &w = words[i];
-            uint32 id;
-            // Zona crítica pequeña (insertar / leer del diccionario)
-            #pragma omp critical(dict_section)
-            {
-                auto it = dict.find(w);
-                if (it == dict.end()) {
-                    id = next_id;
-                    dict[w] = next_id;
-                    ++next_id;
-                } else {
-                    id = it->second;
-                }
-            }
-            ids[i] = id;
-        }
+    for (size_t i = 0; i < N; ++i) {
+        const string &w = words[i];
+        uint32 id;
 
-    // ---- Guardar vocab.bin ----
+        /* zona crítica sólo para el diccionario */
+        #pragma omp critical(dict_section)
+        {
+            auto it = dict.find(w);
+            if (it == dict.end()) {
+                id = next_id;
+                dict[w] = next_id++;
+            } else {
+                id = it->second;
+            }
+        }
+        ids[i] = id;
+    }
+
+    string base = stem_of(path);
+
+    /* ---- vocab.bin ---- */
     {
-        ofstream out("vocab.bin", ios::binary);
+        ofstream vout(base + "_vocab.bin", ios::binary);
         uint32 size = dict.size();
-        out.write(reinterpret_cast<const char *>(&size), sizeof(size));
+        vout.write((char*)&size, sizeof(size));
         for (const auto &[word, id] : dict) {
             uint32 len = word.size();
-            out.write(reinterpret_cast<const char *>(&id), sizeof(id));
-            out.write(reinterpret_cast<const char *>(&len), sizeof(len));
-            out.write(word.data(), len);
+            vout.write((char*)&id , sizeof(id ));
+            vout.write((char*)&len, sizeof(len));
+            vout.write(word.data(), len);
         }
     }
 
-    // ---- Guardar texto.bin ----
+    /* ---- texto.bin ---- */
     {
-        ofstream out("texto.bin", ios::binary);
+        ofstream tout(base + "_texto.bin", ios::binary);
         uint32 count = ids.size();
-        out.write(reinterpret_cast<const char *>(&count), sizeof(count));
-        out.write(reinterpret_cast<const char *>(ids.data()), sizeof(uint32) * count);
+        tout.write((char*)&count, sizeof(count));
+        tout.write((char*)ids.data(), sizeof(uint32)*count);
     }
 
-    double t1 = omp_get_wtime();
-    double duration = (t1 - t0) * 1e9; // Convertir a nanosegundos
+    double secs = chrono::duration<double>(
+                      chrono::steady_clock::now() - t0).count();
 
     #pragma omp critical
-    {
-        cout << "[OMP] Encoded " << N << " words. Unique=" << dict.size()
-              << ", threads=" << omp_get_max_threads()
-                << " | time=" << duration << " ns\n";
-    }
-    return 0;
+    cout << "[OMP] Encoded \"" << path << "\"  words=" << N
+              << "  unique=" << dict.size()
+              << "  threads=" << omp_get_max_threads()
+              << "  | " << secs << " s\n";
+
+    return secs;
 }
 
-// ---------- Decode (mismo que secuencial) ----------
-int decode_file_omp(const string &output_path) {
-    double t0 = omp_get_wtime();
-    
-    ifstream vocab("vocab.bin", ios::binary);
+/* ==============================================================
+                    DECODE   (un archivo base)
+   ==============================================================*/
+int decode_file_omp(const string &stem)   // p.e. docs/messi
+{
+    auto t0 = chrono::steady_clock::now();
+
+    ifstream vocab(stem + "_vocab.bin", ios::binary);
     if (!vocab) {
-        cerr << "vocab.bin not found\n";
-        return 1;
+        #pragma omp critical
+        cerr << stem << "_vocab.bin not found\n";
+        return 0.0;
     }
-    uint32 vocab_size; vocab.read(reinterpret_cast<char *>(&vocab_size), sizeof(vocab_size));
-    vector<string> vocab_vec(vocab_size + 1);
-    for (uint32 i = 0; i < vocab_size; ++i) {
-        uint32 id, len; vocab.read(reinterpret_cast<char *>(&id), sizeof(id));
-        vocab.read(reinterpret_cast<char *>(&len), sizeof(len));
-        string w(len, '\0'); vocab.read(w.data(), len);
-        vocab_vec[id] = move(w);
+    uint32 vs; vocab.read((char*)&vs, sizeof(vs));
+    vector<string> vv(vs + 1);
+    for (uint32 i = 0; i < vs; ++i) {
+        uint32 id,len; vocab.read((char*)&id ,sizeof(id ));
+        vocab.read((char*)&len,sizeof(len));
+        string w(len,'\0'); vocab.read(w.data(),len);
+        vv[id] = move(w);
     }
 
-    ifstream textbin("texto.bin", ios::binary);
-    if (!textbin) { cerr << "texto.bin not found\n"; return 1; }
-    uint32 count; textbin.read(reinterpret_cast<char *>(&count), sizeof(count));
-    vector<uint32> ids(count);
-    textbin.read(reinterpret_cast<char *>(ids.data()), sizeof(uint32) * count);
+    ifstream tb(stem + "_texto.bin", ios::binary);
+    if (!tb) {
+        #pragma omp critical
+        cerr << stem << "_texto.bin not found\n";
+        return 0.0;
+    }
+    uint32 cnt; tb.read((char*)&cnt, sizeof(cnt));
+    vector<uint32> ids(cnt);
+    tb.read((char*)ids.data(), sizeof(uint32)*cnt);
 
-    ofstream out(output_path);
+    ofstream out(stem + "_recon.txt");
     for (size_t i = 0; i < ids.size(); ++i) {
-        out << vocab_vec[ids[i]];
+        out << vv[ids[i]];
         if (i + 1 < ids.size()) out << ' ';
     }
-    
-    double t1 = omp_get_wtime();
-    double duration = (t1 - t0) * 1e9; // Convertir a nanosegundos
-    cout << "Decoded " << ids.size() << " words into " << output_path
-         << " | time=" << duration << " ns\n";
-    return 0;
+
+    double secs = chrono::duration<double>(
+                      chrono::steady_clock::now() - t0).count();
+
+    #pragma omp critical
+    cout << "[OMP] Decoded \"" << stem << "\"  words=" << ids.size()
+              << "  | " << secs << " s\n";
+
+    return secs;
 }
 
-// ---------- main ----------
-int main(int argc, char *argv[]) {
-    if (argc < 2) { help(); return 1; }
+/* ==============================================================
+                            MAIN
+   ==============================================================*/
+void help()
+{
+    cout << "Usage:\n"
+              << "  compacttext_omp encode <file1.txt> <file2.txt> …\n"
+              << "  compacttext_omp decode <file1>     <file2>     …\n"
+              << "         (para decode NO pongas .txt, sólo la base)\n";
+}
+
+int main(int argc, char* argv[])
+{
+    if (argc < 3) { help(); return 1; }
+
     string mode = argv[1];
-    if (mode == "encode" && argc == 3) {
-        return encode_file_omp(argv[2]);
+    double total = 0.0;
+
+    if (mode == "encode") {
+        #pragma omp parallel for reduction(+:total) schedule(dynamic)
+        for (int i = 2; i < argc; ++i)
+            total += encode_file_omp(argv[i]);
+
+        cout << "=== OMP encode total time: " << total << " s ===\n";
+
     } else if (mode == "decode") {
-        string out = (argc == 3) ? argv[2] : "reconstruido.txt";
-        return decode_file_omp(out);
+        #pragma omp parallel for reduction(+:total) schedule(dynamic)
+        for (int i = 2; i < argc; ++i)
+            total += decode_file_omp(argv[i]);
+
+        cout << "=== OMP decode total time: " << total << " s ===\n";
+
     } else {
         help();
         return 1;
     }
+    return 0;
 }
