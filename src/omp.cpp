@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iterator>
 #include <omp.h>
+#include "common.hpp"
 
 using namespace std;
 using uint32 = uint32_t;
@@ -19,20 +20,8 @@ using uint32 = uint32_t;
    porque reconstruir es I/O‑bound y no gana casi nada.
 ----------------------------------------------------------------*/
 
-// ---------- Utils ----------
-// Tokeniza un texto devolviendo palabras, números y algunos signos de puntuación
-vector<string> tokenize(const string &text) {
-    static const regex token_re("[A-Za-zÀ-ÖØ-öø-ÿ0-9'()\\[\\]{}\".,;:!?¿¡—\\-]+");
-    vector<string> words;
-    for (sregex_iterator it(text.begin(), text.end(), token_re);
-         it != sregex_iterator(); ++it) {
-        words.emplace_back(it->str());
-    }
-    return words;
-}
-
 // ---------- Encode (paralelo) ----------
-int encode(const string &input_path) {
+int encode_file_omp (const string& input_path) {
     double t0 = omp_get_wtime();
 
     // Leer texto completo
@@ -98,14 +87,17 @@ int encode(const string &input_path) {
     double t1 = omp_get_wtime();
     double duration = (t1 - t0) * 1e9; // Convertir a nanosegundos
 
-    cout << "[OMP] Encoded " << N << " words. Unique=" << dict.size()
+    #pragma omp critical
+    {
+        cout << "[OMP] Encoded " << N << " words. Unique=" << dict.size()
               << ", threads=" << omp_get_max_threads()
                 << " | time=" << duration << " ns\n";
+    }
     return 0;
 }
 
 // ---------- Decode (mismo que secuencial) ----------
-int decode(const string &output_path) {
+int decode_file_omp(const string &output_path) {
     double t0 = omp_get_wtime();
     
     ifstream vocab("vocab.bin", ios::binary);
@@ -141,22 +133,15 @@ int decode(const string &output_path) {
     return 0;
 }
 
-// ---------- Ayuda ----------
-void help() {
-    cout << "\nUsage:\n"
-              << "  compacttext_omp encode <input.txt>\n"
-              << "  compacttext_omp decode <output.txt>\n\n";
-}
-
 // ---------- main ----------
 int main(int argc, char *argv[]) {
     if (argc < 2) { help(); return 1; }
     string mode = argv[1];
     if (mode == "encode" && argc == 3) {
-        return encode(argv[2]);
+        return encode_file_omp(argv[2]);
     } else if (mode == "decode") {
         string out = (argc == 3) ? argv[2] : "reconstruido.txt";
-        return decode(out);
+        return decode_file_omp(out);
     } else {
         help();
         return 1;
