@@ -153,8 +153,9 @@ void help()
     cout << "Usage:\n"
               << "  compacttext_omp encode <file1.txt> <file2.txt> …\n"
               << "  compacttext_omp decode <file1>     <file2>     …\n"
-              << "         (para decode NO pongas .txt, sólo la base)\n";
+              << "         (para decode NO pongas .txt, sólo la base)\n\n";
 }
+
 /* ==============================================================
                             MAIN
    ==============================================================*/
