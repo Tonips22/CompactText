@@ -12,7 +12,7 @@
 using namespace std;
 using uint32 = uint32_t;
 
-int encode_file_seq (const string& path){
+double encode_file_seq (const string& path){
     string base = stem_of(path);  
 
     auto t0 = chrono::steady_clock::now();
@@ -62,19 +62,18 @@ int encode_file_seq (const string& path){
         out.write(reinterpret_cast<const char *>(ids.data()), sizeof(uint32) * count);
     }
 
-    auto t1 = chrono::steady_clock::now();
-    auto duration = chrono::duration_cast<chrono::nanoseconds>(t1 - t0).count();
-    cout << "Encoding took " << duration << " ns\n";
+    double secs = chrono::duration<double>(
+                      chrono::steady_clock::now() - t0).count();
 
     cout << "Encoded " << words.size()
          << " words. Unique=" << dict.size()
-         << " | time = " << duration << "ns\n";
-    return 0;
+         << " | time = " << secs << "s\n";
+    return secs;
 }
 
 // ------------------------- DECODE -----------------------------
 // Reconstruye el texto original usando vocab.bin y texto.bin
-int decode_file_seq (const string& stem) {
+double decode_file_seq (const string& stem) {
 
     auto t0 = chrono::steady_clock::now();
 
@@ -115,19 +114,18 @@ int decode_file_seq (const string& stem) {
             out << ' ';
     }
 
-    auto t1 = chrono::steady_clock::now();
-    auto duration = chrono::duration_cast<chrono::nanoseconds>(t1 - t0).count();
-    cout << "Decoding took " << duration << " ns\n";
+    double secs = chrono::duration<double>(
+                      chrono::steady_clock::now() - t0).count();
 
     cout << "Decoded " << ids.size()<< " words into " << stem
-         << " | time=" << duration << " ns\n";
-    return 0;
+         << " | time=" << secs << " s\n";
+    return secs;
 }
 
 void help() {
     cout << "\nUsage:\n"
-              << "  compacttext_seq encode <input.txt>\n"
-              << "  compacttext_seq decode <output.txt>\n\n";
+              << "  compacttext_seq encode <input1.txt> <input2.txt> ...\n"
+              << "  compacttext_seq decode <output1> <output2> ...\n\n";
 }
 
 
@@ -136,12 +134,15 @@ int main(int argc, char* argv[]) {
 
     if (argc < 3) { help(); return 1; }
     string mode = argv[1];
+    double secs = 0.0;
 
     if (mode == "encode") {
         for (int i = 2; i < argc; ++i)
-            encode_file_seq(argv[i]);
+            secs += encode_file_seq(argv[i]);
+        cout << "=== SEQ encode total time: " << secs << " s ===\n";
     } else if (mode == "decode") {
         for (int i = 2; i < argc; ++i)
-            decode_file_seq(argv[i]);
+            secs += decode_file_seq(argv[i]);
+        cout << "=== SEQ decode total time: " << secs << " s ===\n";
     } else help();
 }
