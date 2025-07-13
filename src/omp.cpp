@@ -104,44 +104,48 @@ double decode_file_omp(const string &stem)   // p.e. data/messi_example.txt
 {
     auto t0 = chrono::steady_clock::now();
 
+    // Leer vocab.bin
     ifstream vocab(stem + "_vocab.bin", ios::binary);
     if (!vocab) {
-        #pragma omp critical
-        cerr << stem << "_vocab.bin not found\n";
-        return 0.0;
+        cerr << "vocab.bin not found\n";
+        return 1;
     }
-    uint32 vs; vocab.read((char*)&vs, sizeof(vs));
-    vector<string> vv(vs + 1);
-    for (uint32 i = 0; i < vs; ++i) {
-        uint32 id,len; vocab.read((char*)&id ,sizeof(id ));
-        vocab.read((char*)&len,sizeof(len));
-        string w(len,'\0'); vocab.read(w.data(),len);
-        vv[id] = move(w);
+    uint32 vocab_size;
+    vocab.read(reinterpret_cast<char *>(&vocab_size), sizeof(vocab_size));
+    vector<string> vocab_vec(vocab_size + 1); // IDs comienzan en 1
+    for (uint32 i = 0; i < vocab_size; ++i) {
+        uint32 id, len;
+        vocab.read(reinterpret_cast<char *>(&id), sizeof(id));
+        vocab.read(reinterpret_cast<char *>(&len), sizeof(len));
+        string w(len, '\0');
+        vocab.read(w.data(), len);
+        vocab_vec[id] = move(w);
     }
 
-    ifstream tb(stem + "_texto.bin", ios::binary);
-    if (!tb) {
-        #pragma omp critical
-        cerr << stem << "_texto.bin not found\n";
-        return 0.0;
+    // Leer texto.bin
+    ifstream textbin(stem + "_texto.bin", ios::binary);
+    if (!textbin) {
+        cerr << "texto.bin not found\n";
+        return 1;
     }
-    uint32 cnt; tb.read((char*)&cnt, sizeof(cnt));
-    vector<uint32> ids(cnt);
-    tb.read((char*)ids.data(), sizeof(uint32)*cnt);
+    uint32 count;
+    textbin.read(reinterpret_cast<char *>(&count), sizeof(count));
+    vector<uint32> ids(count);
+    textbin.read(reinterpret_cast<char *>(ids.data()), sizeof(uint32) * count);
 
+    // Escribir texto reconstruido
     ofstream out(stem + "_recon.txt");
     for (size_t i = 0; i < ids.size(); ++i) {
-        out << vv[ids[i]];
-        if (i + 1 < ids.size()) out << ' ';
+        out << vocab_vec[ids[i]];
+        if (i + 1 < ids.size())
+            out << ' ';
     }
 
     double secs = chrono::duration<double>(
                       chrono::steady_clock::now() - t0).count();
 
-    #pragma omp critical
-    cout << "[OMP] Decoded \"" << stem << "\"  words=" << ids.size()
-              << "  | " << secs << " s\n";
-
+    cout << "Decoded " << ids.size()<< " words= " << stem
+         << " | time=" << secs << " s\n";
     return secs;
 }
 
