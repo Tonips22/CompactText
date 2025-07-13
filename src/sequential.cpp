@@ -145,4 +145,6 @@ int main(int argc, char* argv[]) {
             secs += decode_file_seq(argv[i]);
         cout << "=== SEQ decode total time: " << secs << " s ===\n";
     } else help();
+
+    return 0;
 }
