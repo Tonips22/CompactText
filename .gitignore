@@ -15,4 +15,7 @@
 *.pdf
 
 # --- TODOs ---
-*.todo
+todo.md
+
+# --- Archivos de salida ---
+*recon.txt
