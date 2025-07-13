@@ -22,7 +22,7 @@ namespace fs = filesystem;
 /* ==============================================================
                     ENCODE   (un archivo)
    ==============================================================*/
-int encode_file_omp(const string &path)
+double encode_file_omp(const string &path)
 {
     auto t0 = chrono::steady_clock::now();
 
@@ -100,7 +100,7 @@ int encode_file_omp(const string &path)
 /* ==============================================================
                     DECODE   (un archivo base)
    ==============================================================*/
-int decode_file_omp(const string &stem)   // p.e. docs/messi
+double decode_file_omp(const string &stem)   // p.e. data/messi_example.txt
 {
     auto t0 = chrono::steady_clock::now();
 
@@ -146,7 +146,7 @@ int decode_file_omp(const string &stem)   // p.e. docs/messi
 }
 
 /* ==============================================================
-                            MAIN
+                            HELP
    ==============================================================*/
 void help()
 {
@@ -155,6 +155,9 @@ void help()
               << "  compacttext_omp decode <file1>     <file2>     …\n"
               << "         (para decode NO pongas .txt, sólo la base)\n";
 }
+/* ==============================================================
+                            MAIN
+   ==============================================================*/
 
 int main(int argc, char* argv[])
 {

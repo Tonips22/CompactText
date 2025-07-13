@@ -10,8 +10,8 @@ using namespace std;
 
 int encode_file_seq (const string& path);
 int decode_file_seq (const string& stem);
-int encode_file_omp (const string& path);
-int decode_file_omp (const string& stem);
+double encode_file_omp (const string& path);
+double decode_file_omp (const string& stem);
 int encode_file_mpi (const string& path);
 int decode_file_mpi (const string& stem);
 void help();
