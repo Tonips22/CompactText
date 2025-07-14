@@ -1,6 +1,6 @@
 /*****************************************************************
- CompactText — versión MPI
- Procesa MÚLTIPLES archivos en paralelo (uno o varios por proceso)
+ CompactText — versión MPI  
+ Multi-archivo + cronómetro + separadores exactos
 *****************************************************************/
 #include <mpi.h>
 #include <iostream>
@@ -8,24 +8,40 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
-#include <regex>
-#include <filesystem>
+#include <cctype>
+#include <cstdint>
 #include <iterator>
 #include <sstream>
-#include <cstdint>
+#include <filesystem>
 #include "common.hpp"
 
 using namespace std;
-
 using uint32 = uint32_t;
 namespace fs = filesystem;
 
-/* =======================================================
-    ENCODE  (un archivo, secuencial)
-    Devuelve segundos empleados
-   =======================================================*/
-double encode_single(const string &path)
-{
+// ----------------------------------------------------------------
+// Divide el texto en tokens (secuencias de no-whitespace) y 
+// separadores exactos (whitespace: ' ', '\t', '\n', etc.)
+static void split_tokens_and_separators(const string& txt,
+                                        vector<string>& tokens,
+                                        vector<string>& seps) {
+    size_t n = txt.size(), pos = 0;
+    while (pos < n) {
+        // 1) Token = secuencia de NO-whitespace
+        size_t start = pos;
+        while (pos < n && !isspace(static_cast<unsigned char>(txt[pos]))) ++pos;
+        tokens.emplace_back(txt.substr(start, pos - start));
+        // 2) Separador = secuencia de whitespace
+        start = pos;
+        while (pos < n && isspace(static_cast<unsigned char>(txt[pos]))) ++pos;
+        seps.emplace_back(txt.substr(start, pos - start));
+    }
+}
+
+// ==============================================================
+//                  ENCODE SINGLE (secuencial)
+// ==============================================================
+static double encode_single(const string &path) {
     double t0 = MPI_Wtime();
 
     ifstream ifs(path);
@@ -33,145 +49,180 @@ double encode_single(const string &path)
         cerr << "Cannot open " << path << "\n";
         return 0.0;
     }
+    // Leer todo el archivo
     string text((istreambuf_iterator<char>(ifs)), {});
-    auto words = tokenize(text);
 
-    unordered_map<string, uint32> dict;
-    dict.reserve(words.size()/2);
-    vector<uint32> ids;
-    ids.reserve(words.size());
-    uint32 next = 1;
+    // Tokenizar con separadores
+    vector<string> tokens, seps;
+    tokens.reserve(1024);
+    seps.reserve(1024);
+    split_tokens_and_separators(text, tokens, seps);
+    uint32 count = static_cast<uint32>(tokens.size());
 
-    for (auto &w: words) {
+    // Construir diccionario y vector de IDs
+    unordered_map<string,uint32> dict;
+    dict.reserve(count/2);
+    vector<uint32> ids(count);
+    uint32 next_id = 1;
+    for (uint32 i = 0; i < count; ++i) {
+        auto &w = tokens[i];
         auto it = dict.find(w);
         uint32 id;
         if (it == dict.end()) {
-            id = next;
-            dict[w] = next++;
-        } else id = it->second;
-        ids.push_back(id);
+            id = next_id;
+            dict[w] = next_id++;
+        } else {
+            id = it->second;
+        }
+        ids[i] = id;
     }
 
     string base = stem_of(path);
-    // vocab
+
+    // Escribir vocab.bin
     {
         ofstream vout(base + "_vocab.bin", ios::binary);
-        uint32 vs = dict.size();
+        uint32 vs = static_cast<uint32>(dict.size());
         vout.write((char*)&vs, sizeof(vs));
-        for (auto &kv: dict) {
-            uint32 len = kv.first.size();
+        for (auto &kv : dict) {
+            uint32 len = static_cast<uint32>(kv.first.size());
             vout.write((char*)&kv.second, sizeof(kv.second));
-            vout.write((char*)&len, sizeof(len));
+            vout.write((char*)&len,    sizeof(len));
             vout.write(kv.first.data(), len);
         }
     }
-    // texto
+
+    // Escribir texto.bin: [count][ (ID, seplen, sepbytes)* ]
     {
         ofstream tout(base + "_texto.bin", ios::binary);
-        uint32 cnt = ids.size();
-        tout.write((char*)&cnt, sizeof(cnt));
-        tout.write((char*)ids.data(), sizeof(uint32)*cnt);
+        tout.write((char*)&count, sizeof(count));
+        for (uint32 i = 0; i < count; ++i) {
+            uint32 id   = ids[i];
+            uint32 slen = static_cast<uint32>(seps[i].size());
+            tout.write((char*)&id,   sizeof(id));
+            tout.write((char*)&slen, sizeof(slen));
+            tout.write(seps[i].data(), slen);
+        }
     }
 
     return MPI_Wtime() - t0;
 }
 
-/* =======================================================
-                 DECODE  (un archivo base, secuencial)
-   =======================================================*/
-double decode_single(const string &stem)
-{
+// ==============================================================
+//                 DECODE SINGLE (secuencial)
+// ==============================================================
+static double decode_single(const string &stem) {
     double t0 = MPI_Wtime();
 
-    ifstream vocab(stem + "_vocab.bin", ios::binary);
-    if (!vocab) {
+    // Leer vocab.bin
+    ifstream vfin(stem + "_vocab.bin", ios::binary);
+    if (!vfin) {
         cerr << stem << "_vocab.bin not found\n";
         return 0.0;
     }
-    uint32 vs; vocab.read((char*)&vs, sizeof(vs));
-    vector<string> vv(vs+1);
-    for (uint32 i=0;i<vs;++i){
-        uint32 id,len; vocab.read((char*)&id,sizeof(id));
-        vocab.read((char*)&len,sizeof(len));
-        string w(len,'\0'); vocab.read(w.data(),len);
-        vv[id]=move(w);
+    uint32 vs;
+    vfin.read((char*)&vs, sizeof(vs));
+    vector<string> vocab(vs + 1);
+    for (uint32 i = 0; i < vs; ++i) {
+        uint32 id,len;
+        vfin.read((char*)&id,  sizeof(id));
+        vfin.read((char*)&len, sizeof(len));
+        string w(len, '\0');
+        vfin.read(w.data(), len);
+        vocab[id] = move(w);
     }
 
-    ifstream tb(stem + "_texto.bin", ios::binary);
-    if (!tb){ cerr << stem << "_texto.bin not found\n"; return 0.0; }
-    uint32 cnt; tb.read((char*)&cnt,sizeof(cnt));
-    vector<uint32> ids(cnt);
-    tb.read((char*)ids.data(), sizeof(uint32)*cnt);
+    // Leer texto.bin y reconstruir
+    ifstream fin(stem + "_texto.bin", ios::binary);
+    if (!fin) {
+        cerr << stem << "_texto.bin not found\n";
+        return 0.0;
+    }
+    uint32 count;
+    fin.read((char*)&count, sizeof(count));
 
     ofstream out(stem + "_recon.txt");
-    for(size_t i=0;i<ids.size();++i){
-        out << vv[ids[i]];
-        if(i+1<ids.size()) out << ' ';
+    for (uint32 i = 0; i < count; ++i) {
+        uint32 id, slen;
+        fin.read((char*)&id,   sizeof(id));
+        fin.read((char*)&slen, sizeof(slen));
+        string sep(slen, '\0');
+        fin.read(sep.data(), slen);
+        out << vocab[id] << sep;
     }
+
     return MPI_Wtime() - t0;
 }
 
-/* ----------------- ayuda ----------------- */
-void help(){
+// ==============================================================
+//                           MAIN
+// ==============================================================
+void help() {
     cout << "Usage:\n"
-              << "  compacttext_mpi encode <file1.txt> <file2.txt> …\n"
-              << "  compacttext_mpi decode <file1>     <file2>     …\n"
-              << "        (para decode NO pongas .txt, solo la base)\n\n";
+         << "  compacttext_mpi encode <file1.txt> <file2.txt> …\n"
+         << "  compacttext_mpi decode <file1>     <file2>     …\n"
+         << "    (para decode NO pongas .txt, sólo la base)\n\n";
 }
 
-/* =======================================================
-                         MAIN
-   =======================================================*/
-int main(int argc, char* argv[])
-{
-    MPI_Init(&argc,&argv);
-
-    int rank,size; MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+int main(int argc, char* argv[]) {
+    MPI_Init(&argc, &argv);
+    int rank,size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    if (argc < 3) { if(rank==0) help(); MPI_Finalize(); return 1; }
+    if (argc < 3) {
+        if (rank==0) help();
+        MPI_Finalize();
+        return 1;
+    }
     string mode = argv[1];
 
-    /* 1) Rank 0 concatena la lista de archivos */
+    // 1) Rank0 construye lista “\n”-separada y la broadcast
     string blob;
-    if(rank==0){
+    if (rank==0) {
         ostringstream oss;
-        for(int i=2;i<argc;++i){ oss << argv[i]; if(i+1<argc) oss << '\n'; }
+        for (int i = 2; i < argc; ++i) {
+            oss << argv[i];
+            if (i+1<argc) oss << '\n';
+        }
         blob = oss.str();
     }
     int len = blob.size();
-    MPI_Bcast(&len,1,MPI_INT,0,MPI_COMM_WORLD);
+    MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
     blob.resize(len);
     MPI_Bcast(blob.data(), len, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-    /* 2) Todos reconstruyen la lista */
+    // 2) Todos reconstruyen el vector<string> files
     vector<string> files;
-    istringstream iss(blob); string line;
-    while(getline(iss,line)) files.push_back(line);
-    int numF = files.size();
+    istringstream iss(blob);
+    string line;
+    while (getline(iss,line)) files.push_back(line);
 
-    /* 3) Reparto round‑robin */
+    // 3) Round-robin: cada rank toma files[i] donde i%size==rank
     vector<string> myFiles;
-    for(int i=rank;i<numF;i+=size) myFiles.push_back(files[i]);
+    for (int i = rank; i < (int)files.size(); i += size)
+        myFiles.push_back(files[i]);
 
-    /* 4) Ejecutar */
+    // 4) Ejecutar localmente
     double local_sum = 0.0;
     if (mode == "encode") {
-        for(auto &f: myFiles) local_sum += encode_single(f);
+        for (auto &f : myFiles) local_sum += encode_single(f);
     } else if (mode == "decode") {
-        for(auto &s: myFiles) local_sum += decode_single(s);
+        for (auto &s : myFiles) local_sum += decode_single(s);
     } else {
-        if(rank==0) help();
+        if (rank==0) help();
         MPI_Finalize();
         return 1;
     }
 
-    /* 5) Reducir y mostrar */
+    // 5) Reducir tiempos y mostrar en rank0
     double global_sum = 0.0;
-    MPI_Reduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-    if(rank==0){
-        cout << "=== MPI " << mode << " total time: " << global_sum << " s === (" << size << " processes) ===\n";
+    MPI_Reduce(&local_sum, &global_sum, 1, MPI_DOUBLE,
+               MPI_SUM, 0, MPI_COMM_WORLD);
+    if (rank==0) {
+        cout << "=== MPI " << mode
+             << " total time: " << global_sum
+             << " s (" << size << " processes) ===\n";
     }
 
     MPI_Finalize();
