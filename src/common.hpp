@@ -13,8 +13,8 @@ using std::vector;
 double encode_file_seq(const string& path);
 double decode_file_seq(const string& stem);
 
-double encode_file_omp(const string& path);
-double decode_file_omp(const string& stem);
+void encode_file_omp(const string& path);
+void decode_file_omp(const string& stem);
 
 double encode_file_mpi(const string& path);
 double decode_file_mpi(const string& stem);

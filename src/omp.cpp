@@ -41,14 +41,14 @@ static void split_tokens_and_separators(const string& txt,
 // ==============================================================
 //                    ENCODE   (un archivo)
 // ==============================================================  
-double encode_file_omp(const string &path) {
-    auto t0 = chrono::steady_clock::now();
+void encode_file_omp(const string &path) {
+    double t0 = omp_get_wtime();
 
     ifstream ifs(path);
     if (!ifs) {
         #pragma omp critical
         cerr << "Cannot open " << path << "\n";
-        return 0.0;
+        return;
     }
     // Leer todo el archivo en memoria
     string text((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
@@ -120,29 +120,26 @@ double encode_file_omp(const string &path) {
         }
     }
 
-    double secs = chrono::duration<double>(
-                      chrono::steady_clock::now() - t0).count();
+    double secs = omp_get_wtime() - t0;
     #pragma omp critical
     cout << "[OMP] Encoded \"" << path << "\" tokens=" << count
          << " unique=" << dict.size()
          << " threads=" << T
          << " | " << secs << " s\n";
-
-    return secs;
 }
 
 // ==============================================================
 //                    DECODE   (un archivo base)
 // ==============================================================  
-double decode_file_omp(const string &stem) {
-    auto t0 = chrono::steady_clock::now();
+void decode_file_omp(const string &stem) {
+    double t0 = omp_get_wtime();
 
     // 1) Leer vocab.bin
     ifstream vfin(stem + "_vocab.bin", ios::binary);
     if (!vfin) {
         #pragma omp critical
         cerr << stem << "_vocab.bin not found\n";
-        return 0.0;
+        return;
     }
     uint32 vs;
     vfin.read(reinterpret_cast<char*>(&vs), sizeof(vs));
@@ -161,7 +158,7 @@ double decode_file_omp(const string &stem) {
     if (!fin) {
         #pragma omp critical
         cerr << stem << "_texto.bin not found\n";
-        return 0.0;
+        return;
     }
     uint32 count;
     fin.read(reinterpret_cast<char*>(&count), sizeof(count));
@@ -176,13 +173,10 @@ double decode_file_omp(const string &stem) {
         out << vocab[id] << sep;
     }
 
-    double secs = chrono::duration<double>(
-                      chrono::steady_clock::now() - t0).count();
+    double secs = omp_get_wtime() - t0;
     #pragma omp critical
     cout << "[OMP] Decoded " << count << " tokens from \"" << stem
          << "\" | " << secs << " s\n";
-
-    return secs;
 }
 
 // ==============================================================
@@ -201,18 +195,23 @@ void help() {
 int main(int argc, char* argv[]) {
     if (argc < 3) { help(); return 1; }
     string mode = argv[1];
-    double total = 0.0;
 
     if (mode == "encode") {
-        #pragma omp parallel for reduction(+:total) schedule(dynamic)
+        double t0 = omp_get_wtime();
+        #pragma omp parallel for schedule(dynamic)
         for (int i = 2; i < argc; ++i)
-            total += encode_file_omp(argv[i]);
-        cout << "=== OMP encode total time: " << total << " s ===\n";
+            encode_file_omp(argv[i]);
+        
+        double total = omp_get_wtime() - t0;
+        cout << "=== OMP encode wall time: " << total << " s ===\n";
 
     } else if (mode == "decode") {
-        #pragma omp parallel for reduction(+:total) schedule(dynamic)
+        double t0 = omp_get_wtime();
+        #pragma omp parallel for schedule(dynamic)
         for (int i = 2; i < argc; ++i)
-            total += decode_file_omp(argv[i]);
+            decode_file_omp(argv[i]);
+        
+        double total = omp_get_wtime() - t0;
         cout << "=== OMP decode total time: " << total << " s ===\n";
 
     } else {
