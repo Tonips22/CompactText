@@ -6,16 +6,20 @@ _Proyecto 3 de Calcolo Paralello e Distribuito._
 ## Estructura del proyecto
 ```
 CompactText
-├── README.md
-├── memory.docx            # Memoria del proyecto
-├── data/                  # textos de prueba
-├── build/                 # binarios generados
+├── data/                   # textos de prueba
 ├── src/
-│   ├── common.hpp
-│   ├── sequential.cpp     # referencia secuencial pequeña
-│   ├── omp.cpp            # versión OpenMP
-│   └── mpi.cpp            # versión MPI
-└── CMakeLists.txt
+│   ├── mpi/                # versión MPI
+│   │   ├── mpi.c           # código principal MPI
+│   │   └── makefile        # makefile para compilar la versión MPI
+│   ├── openmp/             # versión OpenMP
+│   │   ├── omp.c           # código principal OpenMP
+│   │   └── makefile        # makefile para compilar la versión Open
+│   └── sequential/         # versión secuencial
+│       ├── seq.c           # código principal secuencial
+│       └── makefile        # makefile para compilar la versión secuencial
+├── .gitignore              
+├── memory.docx             # Memoria del proyecto
+└── README.md
 ```
 
 ## Autores
