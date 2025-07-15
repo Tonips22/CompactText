@@ -1,17 +1,18 @@
 CC = gcc
 CFLAGS = -O2 -Wall
+TARGET = main
 
-all: main
+all: $(TARGET)
 
-main_secuencial: main
-	$(CC) $(CFLAGS) -o main_secuencial main_secuencial.c
+$(TARGET): main.c
+	$(CC) $(CFLAGS) -o $(TARGET) main.c
 
 encode:
-	./main encode input1.txt input2.txt
+	./$(TARGET) encode input*.txt
 
 decode:
-	./main decode encoded_input1.txt.bin encoded_input2.txt.bin
+	./$(TARGET) decode encoded_input*.bin
 
 clean:
-	rm -f main encoded_*.bin decoded_*.txt dict.txt
+	rm -f $(TARGET) encoded_*.bin decoded_*.txt dict.txt
 

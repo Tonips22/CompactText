@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <omp.h>
 #include <ctype.h>
+#include <omp.h>
 #include <time.h>
 
 #define MAX_WORD_LEN 256
@@ -13,54 +13,41 @@ typedef struct {
     int id;
 } DictEntry;
 
-typedef struct {
-    DictEntry entries[MAX_DICT_SIZE];
-    int size;
-} Dictionary;
-
-Dictionary global_dict;
+DictEntry dict[MAX_DICT_SIZE];
+int dict_size = 0;
 omp_lock_t dict_lock;
-int global_dict_size;
 
-int find_word(Dictionary *dict, const char *word) {
-    for (int i = 0; i < dict->size; i++) {
-        if (strcmp(dict->entries[i].word, word) == 0)
-            return dict->entries[i].id;
+int find_word(const char *word) {
+    for (int i = 0; i < dict_size; i++) {
+        if (strcmp(dict[i].word, word) == 0)
+            return dict[i].id;
     }
     return -1;
 }
 
-int add_word(Dictionary *dict, const char *word) {
-    int id = dict->size;
-    strcpy(dict->entries[dict->size].word, word);
-    dict->entries[dict->size].id = id;
-    dict->size++;
+int add_word(const char *word) {
+    int id = dict_size;
+    strcpy(dict[dict_size].word, word);
+    dict[dict_size].id = id;
+    dict_size++;
     return id;
 }
 
-void save_dict(Dictionary *dict, const char *filename) {
+void save_dict(const char *filename) {
     FILE *f = fopen(filename, "w");
-    if (!f) {
-        perror("Error al guardar diccionario");
-        return;
-    }
-    for (int i = 0; i < dict->size; i++) {
-        fprintf(f, "%s\n", dict->entries[i].word);
+    for (int i = 0; i < dict_size; i++) {
+        fprintf(f, "%s\n", dict[i].word);
     }
     fclose(f);
 }
 
-void load_dict(Dictionary *dict, const char *filename) {
+void load_dict(const char *filename) {
     FILE *f = fopen(filename, "r");
-    if (!f) {
-        perror("No se pudo abrir dict.txt");
-        exit(1);
-    }
     char word[MAX_WORD_LEN];
-    dict->size = 0;
+    dict_size = 0;
     while (fgets(word, MAX_WORD_LEN, f)) {
         word[strcspn(word, "\n")] = '\0';
-        add_word(dict, word);
+        add_word(word);
     }
     fclose(f);
 }
@@ -70,15 +57,9 @@ void encode_file(const char *input_filename) {
     snprintf(output_filename, sizeof(output_filename), "encoded_%s.bin", input_filename);
 
     FILE *in = fopen(input_filename, "r");
-    if (!in) {
-        perror("No se pudo abrir archivo de entrada");
-        return;
-    }
-
     FILE *out = fopen(output_filename, "wb");
-    if (!out) {
-        perror("No se pudo crear archivo de salida");
-        fclose(in);
+    if (!in || !out) {
+        fprintf(stderr, "No se pudo abrir %s\n", input_filename);
         return;
     }
 
@@ -94,10 +75,9 @@ void encode_file(const char *input_filename) {
                 int id;
 
                 omp_set_lock(&dict_lock);
-                id = find_word(&global_dict, word);
-                if (id == -1) {
-                    id = add_word(&global_dict, word);
-                }
+                id = find_word(word);
+                if (id == -1)
+                    id = add_word(word);
                 omp_unset_lock(&dict_lock);
 
                 fwrite(&id, sizeof(int), 1, out);
@@ -113,10 +93,9 @@ void encode_file(const char *input_filename) {
         int id;
 
         omp_set_lock(&dict_lock);
-        id = find_word(&global_dict, word);
-        if (id == -1) {
-            id = add_word(&global_dict, word);
-        }
+        id = find_word(word);
+        if (id == -1)
+            id = add_word(word);
         omp_unset_lock(&dict_lock);
 
         fwrite(&id, sizeof(int), 1, out);
@@ -128,28 +107,19 @@ void encode_file(const char *input_filename) {
 
 void decode_file(const char *bin_filename) {
     char output_filename[256];
-    snprintf(output_filename, sizeof(output_filename), "decoded_%s.txt", bin_filename + 8); // remove "encoded_"
+    snprintf(output_filename, sizeof(output_filename), "decoded_%s.txt", bin_filename + 8);
 
     FILE *in = fopen(bin_filename, "rb");
-    if (!in) {
-        perror("No se pudo abrir archivo binario");
-        return;
-    }
-
     FILE *out = fopen(output_filename, "w");
-    if (!out) {
-        perror("No se pudo crear archivo de salida");
-        fclose(in);
+    if (!in || !out) {
+        fprintf(stderr, "No se pudo abrir archivo binario: %s\n", bin_filename);
         return;
     }
 
     int token;
     while (fread(&token, sizeof(int), 1, in)) {
         if (token >= 0) {
-            if (token < global_dict_size)
-                fprintf(out, "%s", global_dict.entries[token].word);
-            else
-                fprintf(out, "<?>"); // error de índice
+            fprintf(out, "%s", dict[token].word);
         } else {
             fputc(-token, out);
         }
@@ -166,23 +136,22 @@ int main(int argc, char *argv[]) {
     }
 
     double start_time = omp_get_wtime();
-
     omp_init_lock(&dict_lock);
 
     if (strcmp(argv[1], "encode") == 0) {
-        global_dict.size = 0;
-
         #pragma omp parallel for schedule(dynamic)
         for (int i = 2; i < argc; i++) {
             encode_file(argv[i]);
         }
 
-        // Guardar diccionario una vez
-        save_dict(&global_dict, "dict.txt");
+        // Guardar el diccionario una sola vez
+        #pragma omp single
+        {
+            save_dict("dict.txt");
+        }
 
     } else if (strcmp(argv[1], "decode") == 0) {
-        load_dict(&global_dict, "dict.txt");
-        global_dict_size = global_dict.size;
+        load_dict("dict.txt");
 
         #pragma omp parallel for schedule(dynamic)
         for (int i = 2; i < argc; i++) {
@@ -191,6 +160,7 @@ int main(int argc, char *argv[]) {
 
     } else {
         printf("Comando no reconocido: %s\n", argv[1]);
+        omp_destroy_lock(&dict_lock);
         return 1;
     }
 

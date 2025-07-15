@@ -1,20 +1,18 @@
 CC = gcc
 CFLAGS = -O2 -Wall -fopenmp
 TARGET = main_openmp
-SRC = main_openmp.c
 
 all: $(TARGET)
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $^
+$(TARGET): main_openmp.c
+	$(CC) $(CFLAGS) -o $(TARGET) main_openmp.c
 
-encode: $(TARGET)
-	./$(TARGET) encode input1.txt input2.txt
+encode:
+	./$(TARGET) encode input*.txt
 
-decode: $(TARGET)
-	./$(TARGET) decode encoded_input1.txt.bin encoded_input2.txt.bin
+decode:
+	./$(TARGET) decode encoded_input*.bin
 
 clean:
 	rm -f $(TARGET) encoded_*.bin decoded_*.txt dict.txt
-
 

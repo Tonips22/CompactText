@@ -8,11 +8,11 @@ $(TARGET): main_mpi.c
 	$(CC) $(CFLAGS) -o $(TARGET) main_mpi.c
 
 encode:
-	mpirun -np 4 ./$(TARGET) encode input1.txt input2.txt
+	mpirun -np 4 ./$(TARGET) encode input*.txt
 
 decode:
-	mpirun -np 4 ./$(TARGET) decode encoded_input1.txt.bin encoded_input2.txt.bin
+	mpirun -np 4 ./$(TARGET) decode encoded_input*.bin
 
 clean:
-	rm -f $(TARGET) *.o encoded_*.bin decoded_*.txt dict.txt
+	rm -f $(TARGET) encoded_*.bin decoded_*.txt dict.txt
 
