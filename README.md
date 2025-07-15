@@ -17,8 +17,9 @@ CompactText
 │   └── sequential/         # versión secuencial
 │       ├── seq.c           # código principal secuencial
 │       └── makefile        # makefile para compilar la versión secuencial
-├── README.md
-└── memory.docx             # Memoria del proyecto
+├── .gitignore              
+├── memory.docx             # Memoria del proyecto
+└── README.md
 ```
 
 ## Autores
