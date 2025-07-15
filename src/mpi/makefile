@@ -1,11 +1,11 @@
 CC = mpicc
 CFLAGS = -O2 -Wall
-TARGET = main_mpi
+TARGET = mpi
 
 all: $(TARGET)
 
-$(TARGET): main_mpi.c
-	$(CC) $(CFLAGS) -o $(TARGET) main_mpi.c
+$(TARGET): mpi.c
+	$(CC) $(CFLAGS) -o $(TARGET) mpi.c
 
 encode:
 	mpirun -np 4 ./$(TARGET) encode *.txt

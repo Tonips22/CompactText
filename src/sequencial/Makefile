@@ -1,11 +1,11 @@
 CC = gcc
 CFLAGS = -O2 -Wall
-TARGET = main
+TARGET = seq
 
 all: $(TARGET)
 
-$(TARGET): main.c
-	$(CC) $(CFLAGS) -o $(TARGET) main.c
+$(TARGET): seq.c
+	$(CC) $(CFLAGS) -o $(TARGET) seq.c
 
 encode:
 	./$(TARGET) encode *.txt

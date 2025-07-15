@@ -1,11 +1,11 @@
 CC = gcc
 CFLAGS = -O2 -Wall -fopenmp
-TARGET = main_openmp
+TARGET = omp
 
 all: $(TARGET)
 
-$(TARGET): main_openmp.c
-	$(CC) $(CFLAGS) -o $(TARGET) main_openmp.c
+$(TARGET): omp.c
+	$(CC) $(CFLAGS) -o $(TARGET) omp.c
 
 encode:
 	./$(TARGET) encode *.txt
