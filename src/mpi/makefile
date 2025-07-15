@@ -1,17 +1,16 @@
 CC = mpicc
 CFLAGS = -O2 -Wall
 TARGET = mpi
-
-all: $(TARGET)
+MPI_PROCS ?= 4
 
 $(TARGET): mpi.c
 	$(CC) $(CFLAGS) -o $(TARGET) mpi.c
 
 encode:
-	mpirun -np 4 ./$(TARGET) encode *.txt
+	mpirun -np $(MPI_PROCS) ./$(TARGET) encode *.txt
 
 decode:
-	mpirun -np 4 ./$(TARGET) decode encoded_*.bin
+	mpirun -np $(MPI_PROCS) ./$(TARGET) decode encoded_*.bin
 
 clean:
 	rm -f $(TARGET) encoded_*.bin decoded_*.txt dict.txt
