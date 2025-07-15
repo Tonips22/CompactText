@@ -2,8 +2,6 @@ CC = gcc
 CFLAGS = -O2 -Wall
 TARGET = seq
 
-all: $(TARGET)
-
 $(TARGET): seq.c
 	$(CC) $(CFLAGS) -o $(TARGET) seq.c
 
