@@ -8,8 +8,11 @@
 *.swp
 
 # --- Binarios del proyecto ---
-vocab.bin
-texto.bin
+*bin
+*bin.txt
+
+# --- Diccionarios ---
+dict.txt
 
 # --- Documentos ---
 *.docx
