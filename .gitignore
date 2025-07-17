@@ -14,10 +14,6 @@
 # --- Diccionarios ---
 dict.txt
 
-# --- Documentos ---
-*.docx
-*.pdf
-
 # --- TODOs ---
 *.todo
 TODO.md
