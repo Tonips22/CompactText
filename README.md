@@ -6,21 +6,21 @@ _Proyecto 3 de Calcolo Paralello e Distribuito._
 ## 1. Estructura del proyecto
 ```
 CompactText
-├── data/                   # textos de prueba
+├── data/                   # testi di prova
 ├── src/
-│   ├── mpi/                # versión MPI
-│   │   ├── mpi.c           # código principal MPI
-│   │   └── makefile        # makefile para compilar la versión MPI
-│   ├── openmp/             # versión OpenMP
-│   │   ├── omp.c           # código principal OpenMP
-│   │   └── makefile        # makefile para compilar la versión Open
-│   └── sequential/         # versión secuencial
-│       ├── seq.c           # código principal secuencial
-│       └── makefile        # makefile para compilar la versión secuencial
+│   ├── mpi/                # versione MPI
+│   │   ├── mpi.c           # codice principale MPI
+│   │   └── makefile        # makefile per compilare la versione MPI
+│   ├── openmp/             # versione OpenMP
+│   │   ├── omp.c           # codice principale OpenMP
+│   │   └── makefile        # makefile per compilare la versione OpenMP
+│   └── sequential/         # versione sequenziale
+│       ├── seq.c           # codice principale sequenziale
+│       └── makefile        # makefile per compilare la versione sequenziale
 ├── .gitignore              
-├── memory.docx             # Memoria del proyecto
+├── memory.docx             # Documento del progetto
 └── README.md
-```
+
 
 ## 2. Compilación y Ejecución
 ### Versión Secuencial / OpenMP
