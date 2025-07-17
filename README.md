@@ -1,9 +1,9 @@
 # CompactText
-Convierte un texto en una representación compacta (IDs de palabras) y viceversa, con versiones paralelas en **OpenMP y MPI**.
+Converte un testo in una rappresentazione compatta (ID delle parole) e viceversa, con versioni parallele in **OpenMP e MPI**.
 
-_Proyecto 3 de Calcolo Paralello e Distribuito._
+_Progetto 3 di Calcolo Parallelo e Distribuito._
 
-## 1. Estructura del proyecto
+## 1. Struttura del progetto
 ```
 CompactText
 ├── data/                   # testi di prova
@@ -20,71 +20,71 @@ CompactText
 ├── .gitignore              
 ├── memory.docx             # Documento del progetto
 └── README.md
+```
 
-
-## 2. Compilación y Ejecución
-### Versión Secuencial / OpenMP
-**Acceder** al directorio `src/sequential`
+## 2. Compilazione ed Esecuzione
+### Versione Sequenziale / OpenMP
+**Accedere** alla cartella `src/sequential`
 ```bash
 cd src/sequential ó cd src/openmp
 ```
-**Copiar** los textos de prueba del directorio `data` al directorio actual, por ejemplo:
+**Copia** i testi di prova dalla directory `data` alla directory corrente, ad esempio:
 ```bash
 cp ../../data/S/* .
 ```
-**Compilar** el código secuencial:
+**Compilare** il codice:
 ```bash
 make
 ```
-**Asignar** el número de threads (OpenMP):
+**Assegna** il numero di thread (OpenMP):
 ```bash
-export OMP_NUM_THREADS=4  # o el número de hilos deseado
+export OMP_NUM_THREADS=4  # o il numero desiderato di thread
 ```
 
-**Ejecutar** el encoder:
+**Esegui** il encoder:
 ```bash
 make encode
 ```
 
-**Ejecutar** el decoder:
+**Esegui** il decoder:
 ```bash
 make decode
 ```
-**Limpiar** los archivos generados:
+**Pulisci** i file generati:
 ```bash
 make clean
 ```
 
 ### Versión MPI
-**Acceder** al directorio `src/mpi`
+**Accedere** alla cartella `src/mpi`
 ```bash
 cd src/mpi
 ```
-**Copiar** los textos de prueba del directorio `data` al directorio actual, por ejemplo:
+**Copia** i testi di prova dalla directory `data` alla directory corrente, ad esempio:
 ```bash
 cp ../../data/S/* .
 ```
-**Compilar** el código MPI:
+**Compilare** il codice MPI:
 ```bash
 make
 ```
-**Ejecutar** el encoder (MPI):
+**Esegui** il encoder (MPI):
 ```bash
-make encode MPI_PROCS=4 # o el número de procesos deseado
+make encode MPI_PROCS=4 # o il numero desiderato di thread
 ```
-**Ejecutar** el decoder (MPI):
+**Esegui** il decoder (MPI):
 ```bash
-make decode MPI_PROCS=4 # o el número de procesos deseado
+make decode MPI_PROCS=4 # o il numero desiderato di thread
 ```
-**Limpiar** los archivos generados:
+**Pulisci** i file generati:
 ```bash
 make clean
 ```
 
 
 ## 3. Tests y Memoria
-- [CompactText Tests](https://docs.google.com/spreadsheets/d/1AYNYCpEJc7D6Up8Y7-oKM3t9jygzSl_Xlc6H8CmSi3I/edit?usp=sharing) donde hemos anotado todos los tests realizados.
-- [Memoria del proyecto](https://docs.google.com/document/d/1zgazvNnEc1EiDpZZGMbx4p7WmcHdK6b3cvMjiNtbz8w/edit?tab=t.0) con una descripción detallada de la implementación, problemas y resultados obtenidos.
+- [CompactText Tests](https://docs.google.com/spreadsheets/d/1AYNYCpEJc7D6Up8Y7-oKM3t9jygzSl_Xlc6H8CmSi3I/edit?usp=sharing) dove abbiamo annotato tutti i test effettuati.
+- [Memoria del proyecto](https://docs.google.com/document/d/1zgazvNnEc1EiDpZZGMbx4p7WmcHdK6b3cvMjiNtbz8w/edit?tab=t.0) con una descrizione dettagliata dell’implementazione, dei problemi affrontati e dei risultati ottenuti.
 
 ## 4. Autores
 - Sara Liñan Heredia
